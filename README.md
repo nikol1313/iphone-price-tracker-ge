@@ -1,1 +1,1 @@
-# iphone-price-tracker-ge
+#  iPhone Price Monitor Georgia
