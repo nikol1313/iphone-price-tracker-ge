@@ -1,3 +1,6 @@
+asyncpg
 pydantic
 pydantic-settings
 sqlalchemy
+bs4
+httpx

@@ -1,18 +1,26 @@
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
-from app.conf import Settings
+from collections.abc import AsyncGenerator
 
-engine = create_async_engine(Settings.DATABASE_URL)
-class Base(declarative_base):
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
+from app.conf import settings
+
+
+engine = create_async_engine(settings.database_url)
+
+
+class Base(DeclarativeBase):
     pass
-SESSION = async_sessionmaker(bind=engine,autoflush=False,autocommit=False)
 
-async def get_conn():
-    try:
-        async with SESSION() as session:
+
+SESSION = async_sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+
+async def get_conn() -> AsyncGenerator[AsyncSession]:
+    async with SESSION() as session:
+        try:
             yield session
             await session.commit()
-    except Exception:
-        await  session.rollback()
-        raise
-
+        except Exception:
+            await session.rollback()
+            raise
