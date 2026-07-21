@@ -6,6 +6,9 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.crud import (
+    complete_crawl_run,
+    create_crawl_run,
+    fail_crawl_run,
     get_or_create_product,
     get_or_create_store,
     upsert_product_listing,
@@ -19,6 +22,7 @@ from app.scraper.scrape_zoommer import BASE_URL, scrape_zoommer
 class IngestionSummary:
     scraped: int
     ingested: int
+    crawl_run_id: int | None = None
 
 
 def _required_text(item: Mapping[str, object], key: str) -> str:
@@ -102,8 +106,48 @@ async def ingest_zoommer(
 
 
 async def run_zoommer_ingestion() -> IngestionSummary:
-    async with SESSION.begin() as session:
-        return await ingest_zoommer(session)
+    async with SESSION() as session:
+        async with session.begin():
+            store = await get_or_create_store(
+                session,
+                StoreCreate(title="Zoommer", web_url=BASE_URL),
+            )
+            crawl_run = await create_crawl_run(session, store.id)
+            crawl_run_id = crawl_run.id
+
+        products_found = 0
+
+        try:
+            scraped_products = await scrape_zoommer()
+            products_found = len(scraped_products)
+
+            async with session.begin():
+                summary = await ingest_zoommer(session, scraped_products)
+                await complete_crawl_run(
+                    session,
+                    crawl_run_id,
+                    products_found=summary.scraped,
+                    products_ingested=summary.ingested,
+                )
+
+            return IngestionSummary(
+                scraped=summary.scraped,
+                ingested=summary.ingested,
+                crawl_run_id=crawl_run_id,
+            )
+        except Exception as error:
+            if session.in_transaction():
+                await session.rollback()
+
+            async with session.begin():
+                await fail_crawl_run(
+                    session,
+                    crawl_run_id,
+                    error,
+                    products_found=products_found,
+                )
+
+            raise
 
 
 async def main() -> None:

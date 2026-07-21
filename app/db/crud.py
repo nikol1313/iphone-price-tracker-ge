@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,7 +12,7 @@ from app.db.db_schemas import (
     ProductListingCreate,
     StoreCreate,
 )
-from app.db.models import PriceHist, Product, ProductListing, Store
+from app.db.models import CrawlRun, PriceHist, Product, ProductListing, Store
 
 
 def _normalize_optional(value: str | None) -> str | None:
@@ -43,12 +44,21 @@ async def create_store(session: AsyncSession, store_data: StoreCreate) -> Store:
 
 
 async def get_or_create_store(session: AsyncSession, store_data: StoreCreate) -> Store:
-    store = await get_store_by_title(session, store_data.title)
+    statement = (
+        insert(Store)
+        .values(title=store_data.title, web_url=store_data.web_url)
+        .on_conflict_do_nothing()
+        .returning(Store)
+    )
+    store = await session.scalar(statement)
 
-    if store is not None:
-        return store
+    if store is None:
+        store = await get_store_by_title(session, store_data.title)
 
-    return await create_store(session, store_data)
+    if store is None:
+        raise RuntimeError("Store upsert completed without returning a row")
+
+    return store
 
 
 async def get_product(session: AsyncSession, product_id: int) -> Product | None:
@@ -99,18 +109,94 @@ async def get_or_create_product(
     session: AsyncSession,
     product_data: ProductCreate,
 ) -> Product:
-    product = await get_product_by_details(
-        session,
-        brand=product_data.brand,
-        model=product_data.model,
-        storage=product_data.storage,
-        color=product_data.color,
+    statement = (
+        insert(Product)
+        .values(
+            brand=product_data.brand,
+            model=product_data.model,
+            storage=_normalize_optional(product_data.storage),
+            color=_normalize_optional(product_data.color),
+        )
+        .on_conflict_do_nothing()
+        .returning(Product)
     )
+    product = await session.scalar(statement)
 
-    if product is not None:
-        return product
+    if product is None:
+        product = await get_product_by_details(
+            session,
+            brand=product_data.brand,
+            model=product_data.model,
+            storage=product_data.storage,
+            color=product_data.color,
+        )
 
-    return await create_product(session, product_data)
+    if product is None:
+        raise RuntimeError("Product upsert completed without returning a row")
+
+    return product
+
+
+async def get_crawl_run(
+    session: AsyncSession,
+    crawl_run_id: int,
+) -> CrawlRun | None:
+    return await session.get(CrawlRun, crawl_run_id)
+
+
+async def create_crawl_run(session: AsyncSession, store_id: int) -> CrawlRun:
+    crawl_run = CrawlRun(
+        store_id=store_id,
+        status="running",
+        started_at=datetime.now(UTC),
+        products_found=0,
+        products_ingested=0,
+    )
+    session.add(crawl_run)
+    await session.flush()
+    return crawl_run
+
+
+async def complete_crawl_run(
+    session: AsyncSession,
+    crawl_run_id: int,
+    *,
+    products_found: int,
+    products_ingested: int,
+) -> CrawlRun:
+    crawl_run = await get_crawl_run(session, crawl_run_id)
+
+    if crawl_run is None:
+        raise LookupError(f"Crawl run {crawl_run_id} does not exist")
+
+    crawl_run.status = "succeeded"
+    crawl_run.finished_at = datetime.now(UTC)
+    crawl_run.products_found = products_found
+    crawl_run.products_ingested = products_ingested
+    crawl_run.error_message = None
+    await session.flush()
+    return crawl_run
+
+
+async def fail_crawl_run(
+    session: AsyncSession,
+    crawl_run_id: int,
+    error: Exception,
+    *,
+    products_found: int = 0,
+) -> CrawlRun:
+    crawl_run = await get_crawl_run(session, crawl_run_id)
+
+    if crawl_run is None:
+        raise LookupError(f"Crawl run {crawl_run_id} does not exist")
+
+    crawl_run.status = "failed"
+    crawl_run.finished_at = datetime.now(UTC)
+    crawl_run.products_found = products_found
+    crawl_run.products_ingested = 0
+    crawl_run.error_message = f"{type(error).__name__}: {error}"[:2000]
+    await session.flush()
+    return crawl_run
 
 
 async def get_product_listing(

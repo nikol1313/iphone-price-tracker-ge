@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import re
 from urllib.parse import urljoin
 
@@ -8,6 +9,21 @@ from bs4 import BeautifulSoup
 
 BASE_URL = "https://zoommer.ge"
 ZOOMMER_APPLE_PHONES_URL = f"{BASE_URL}/mobiluri-telefonebi-apple-c724"
+LOGGER = logging.getLogger(__name__)
+
+
+class ZoommerCrawlError(RuntimeError):
+    """Raised when Zoommer cannot be fetched after the retry policy."""
+
+
+def _is_retryable(error: httpx.HTTPError) -> bool:
+    if isinstance(error, httpx.RequestError):
+        return True
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code in {408, 429} or (
+            error.response.status_code >= 500
+        )
+    return False
 
 
 def parse_price(price_text: str) -> float | None:
@@ -155,7 +171,62 @@ def products_from_html_cards(soup: BeautifulSoup) -> list[dict[str, object]]:
     return products
 
 
-async def scrape_zoommer(url: str = ZOOMMER_APPLE_PHONES_URL) -> list[dict[str, object]]:
+async def _fetch_with_retries(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    max_attempts: int,
+    backoff_seconds: float,
+    request_delay_seconds: float,
+) -> httpx.Response:
+    last_error: httpx.HTTPError | None = None
+    attempts_made = 0
+
+    for attempt in range(1, max_attempts + 1):
+        attempts_made = attempt
+        if request_delay_seconds:
+            await asyncio.sleep(request_delay_seconds)
+
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response
+        except httpx.HTTPError as error:
+            last_error = error
+
+            if attempt == max_attempts or not _is_retryable(error):
+                break
+
+            retry_delay = backoff_seconds * (2 ** (attempt - 1))
+            LOGGER.warning(
+                "Zoommer request failed; retrying in %.1f seconds "
+                "(attempt %d/%d): %s",
+                retry_delay,
+                attempt,
+                max_attempts,
+                error,
+            )
+            if retry_delay:
+                await asyncio.sleep(retry_delay)
+
+    raise ZoommerCrawlError(
+        f"Failed to fetch {url} after {attempts_made} attempt(s): {last_error}"
+    ) from last_error
+
+
+async def scrape_zoommer(
+    url: str = ZOOMMER_APPLE_PHONES_URL,
+    *,
+    max_attempts: int = 3,
+    backoff_seconds: float = 1.0,
+    request_delay_seconds: float = 0.5,
+    client: httpx.AsyncClient | None = None,
+) -> list[dict[str, object]]:
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    if backoff_seconds < 0 or request_delay_seconds < 0:
+        raise ValueError("retry and request delays cannot be negative")
+
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (X11; Linux x86_64) "
@@ -166,17 +237,27 @@ async def scrape_zoommer(url: str = ZOOMMER_APPLE_PHONES_URL) -> list[dict[str, 
         "Accept-Language": "ka-GE,ka;q=0.9,en-US;q=0.8,en;q=0.7",
     }
 
-    try:
+    if client is None:
         async with httpx.AsyncClient(
             headers=headers,
             timeout=httpx.Timeout(20, connect=10),
             follow_redirects=True,
-        ) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-    except httpx.HTTPError as error:
-        print(f"Failed to fetch Zoommer: {error}")
-        return []
+        ) as owned_client:
+            response = await _fetch_with_retries(
+                owned_client,
+                url,
+                max_attempts=max_attempts,
+                backoff_seconds=backoff_seconds,
+                request_delay_seconds=request_delay_seconds,
+            )
+    else:
+        response = await _fetch_with_retries(
+            client,
+            url,
+            max_attempts=max_attempts,
+            backoff_seconds=backoff_seconds,
+            request_delay_seconds=request_delay_seconds,
+        )
 
     soup = BeautifulSoup(response.text, "html.parser")
     return products_from_json_ld(soup) or products_from_html_cards(soup)

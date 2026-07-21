@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -30,6 +30,19 @@ class StoreResponse(StoreBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+
+
+class CrawlRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    store_id: int
+    status: Literal["running", "succeeded", "failed"]
+    started_at: datetime
+    finished_at: datetime | None
+    products_found: int
+    products_ingested: int
+    error_message: str | None
 
 
 #products
