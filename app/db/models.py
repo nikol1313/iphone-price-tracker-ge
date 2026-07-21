@@ -25,7 +25,7 @@ class Product(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     brand: Mapped[str] = mapped_column(String(50), nullable=False)
-    model: Mapped[str] = mapped_column(String(50), nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
     storage: Mapped[str | None] = mapped_column(String(20))
     color: Mapped[str | None] = mapped_column(String(50))
 

@@ -3,6 +3,7 @@ name = "iphone-price-monitoring"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.18.5",
     "asyncpg>=0.31.0",
     "beautifulsoup4>=4.15.0",
     "django-request>=1.7.1",
