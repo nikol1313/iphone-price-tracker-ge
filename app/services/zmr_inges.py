@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.db.crud import (
     complete_crawl_run,
@@ -16,6 +17,7 @@ from app.db.crud import (
 from app.db.db_schemas import ProductCreate, ProductListingCreate, StoreCreate
 from app.db.sess import SESSION
 from app.scraper.scrape_zoommer import BASE_URL, scrape_zoommer
+from app.services.errors import RefreshInProgressError
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +25,9 @@ class IngestionSummary:
     scraped: int
     ingested: int
     crawl_run_id: int | None = None
+    listings_created: int = 0
+    listings_updated: int = 0
+    prices_recorded: int = 0
 
 
 def _required_text(item: Mapping[str, object], key: str) -> str:
@@ -89,9 +94,13 @@ async def ingest_zoommer(
         StoreCreate(title="Zoommer", web_url=BASE_URL),
     )
 
+    listings_created = 0
+    listings_updated = 0
+    prices_recorded = 0
+
     for item in products:
         product = await get_or_create_product(session, _product_create(item))
-        await upsert_product_listing(
+        result = await upsert_product_listing(
             session,
             ProductListingCreate(
                 store_id=store.id,
@@ -101,19 +110,33 @@ async def ingest_zoommer(
                 currency=_optional_text(item, "currency") or "GEL",
             ),
         )
+        listings_created += int(result.created)
+        listings_updated += int(not result.created)
+        prices_recorded += int(result.price_recorded)
 
-    return IngestionSummary(scraped=len(products), ingested=len(products))
+    return IngestionSummary(
+        scraped=len(products),
+        ingested=len(products),
+        listings_created=listings_created,
+        listings_updated=listings_updated,
+        prices_recorded=prices_recorded,
+    )
 
 
 async def run_zoommer_ingestion() -> IngestionSummary:
     async with SESSION() as session:
-        async with session.begin():
-            store = await get_or_create_store(
-                session,
-                StoreCreate(title="Zoommer", web_url=BASE_URL),
-            )
-            crawl_run = await create_crawl_run(session, store.id)
-            crawl_run_id = crawl_run.id
+        try:
+            async with session.begin():
+                store = await get_or_create_store(
+                    session,
+                    StoreCreate(title="Zoommer", web_url=BASE_URL),
+                )
+                crawl_run = await create_crawl_run(session, store.id)
+                crawl_run_id = crawl_run.id
+        except IntegrityError as error:
+            raise RefreshInProgressError(
+                "A Zoommer refresh is already running"
+            ) from error
 
         products_found = 0
 
@@ -134,6 +157,9 @@ async def run_zoommer_ingestion() -> IngestionSummary:
                 scraped=summary.scraped,
                 ingested=summary.ingested,
                 crawl_run_id=crawl_run_id,
+                listings_created=summary.listings_created,
+                listings_updated=summary.listings_updated,
+                prices_recorded=summary.prices_recorded,
             )
         except Exception as error:
             if session.in_transaction():

@@ -4,3 +4,10 @@ pydantic-settings
 sqlalchemy
 bs4
 httpx
+requests
+django-request
+fastapi
+uvicorn[standard]
+pyjwt
+pwdlib[argon2]
+email-validator

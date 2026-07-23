@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from dataclasses import dataclass
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -13,14 +14,20 @@ from app.db.db_schemas import (
     StoreCreate,
 )
 from app.db.models import CrawlRun, PriceHist, Product, ProductListing, Store
+from app.services.normalization import (
+    normalize_color,
+    normalize_optional_text,
+    normalize_storage,
+    normalize_text,
+    product_identity_key,
+)
 
 
-def _normalize_optional(value: str | None) -> str | None:
-    if value is None:
-        return None
-
-    stripped_value = value.strip()
-    return stripped_value or None
+@dataclass(frozen=True, slots=True)
+class ListingUpsertResult:
+    listing: ProductListing
+    created: bool
+    price_recorded: bool
 
 
 def _normalize_currency(currency: str) -> str:
@@ -73,32 +80,25 @@ async def get_product_by_details(
     storage: str | None = None,
     color: str | None = None,
 ) -> Product | None:
-    normalized_storage = _normalize_optional(storage)
-    normalized_color = _normalize_optional(color)
     statement = select(Product).where(
-        Product.brand == brand.strip(),
-        Product.model == model.strip(),
+        Product.identity_key
+        == product_identity_key(brand, model, storage, color)
     )
-
-    if normalized_storage is None:
-        statement = statement.where(Product.storage.is_(None))
-    else:
-        statement = statement.where(Product.storage == normalized_storage)
-
-    if normalized_color is None:
-        statement = statement.where(Product.color.is_(None))
-    else:
-        statement = statement.where(Product.color == normalized_color)
-
     return await session.scalar(statement)
 
 
 async def create_product(session: AsyncSession, product_data: ProductCreate) -> Product:
     product = Product(
-        brand=product_data.brand,
-        model=product_data.model,
-        storage=_normalize_optional(product_data.storage),
-        color=_normalize_optional(product_data.color),
+        brand=normalize_text(product_data.brand),
+        model=normalize_text(product_data.model),
+        storage=normalize_storage(product_data.storage),
+        color=normalize_color(product_data.color),
+        identity_key=product_identity_key(
+            product_data.brand,
+            product_data.model,
+            product_data.storage,
+            product_data.color,
+        ),
     )
     session.add(product)
     await session.flush()
@@ -112,10 +112,17 @@ async def get_or_create_product(
     statement = (
         insert(Product)
         .values(
-            brand=product_data.brand,
-            model=product_data.model,
-            storage=_normalize_optional(product_data.storage),
-            color=_normalize_optional(product_data.color),
+            brand=normalize_text(product_data.brand),
+            model=normalize_text(product_data.model),
+            storage=normalize_storage(product_data.storage),
+            color=normalize_color(product_data.color),
+            identity_key=product_identity_key(
+                product_data.brand,
+                product_data.model,
+                product_data.storage,
+                product_data.color,
+            ),
+            is_active=True,
         )
         .on_conflict_do_nothing()
         .returning(Product)
@@ -230,6 +237,11 @@ async def create_product_listing(
         current_price=listing_data.current_price,
         currency=_normalize_currency(listing_data.currency),
         last_checked_at=datetime.now(UTC),
+        is_active=True,
+        is_available=listing_data.is_available,
+        last_seen_at=listing_data.last_seen_at or datetime.now(UTC),
+        variant_name=normalize_optional_text(listing_data.variant_name),
+        external_product_id=normalize_optional_text(listing_data.external_product_id),
     )
     session.add(listing)
     await session.flush()
@@ -244,6 +256,7 @@ async def create_price_history(
         listing_id=price_history_data.listing_id,
         price=price_history_data.price,
         currency=_normalize_currency(price_history_data.currency),
+        is_available=price_history_data.is_available,
         recorded_at=datetime.now(UTC),
     )
     session.add(price_history)
@@ -256,7 +269,7 @@ async def upsert_product_listing(
     listing_data: ProductListingCreate,
     *,
     record_unchanged_price: bool = False,
-) -> ProductListing:
+) -> ListingUpsertResult:
     listing = await get_listing_by_store_product(
         session,
         store_id=listing_data.store_id,
@@ -273,15 +286,27 @@ async def upsert_product_listing(
                 listing_id=listing.id,
                 price=price,
                 currency=currency,
+                is_available=listing_data.is_available,
             ),
         )
-        return listing
+        return ListingUpsertResult(
+            listing=listing,
+            created=True,
+            price_recorded=True,
+        )
 
     price_changed = listing.current_price != price or listing.currency != currency
     listing.product_url = listing_data.product_url
     listing.current_price = price
     listing.currency = currency
     listing.last_checked_at = datetime.now(UTC)
+    listing.is_active = True
+    listing.is_available = listing_data.is_available
+    listing.last_seen_at = listing_data.last_seen_at or datetime.now(UTC)
+    listing.variant_name = normalize_optional_text(listing_data.variant_name)
+    listing.external_product_id = normalize_optional_text(
+        listing_data.external_product_id
+    )
 
     if price_changed or record_unchanged_price:
         await create_price_history(
@@ -290,11 +315,16 @@ async def upsert_product_listing(
                 listing_id=listing.id,
                 price=price,
                 currency=currency,
+                is_available=listing_data.is_available,
             ),
         )
 
     await session.flush()
-    return listing
+    return ListingUpsertResult(
+        listing=listing,
+        created=False,
+        price_recorded=price_changed or record_unchanged_price,
+    )
 
 
 async def list_product_listings(
