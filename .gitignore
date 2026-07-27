@@ -17,3 +17,4 @@ postgres_data/
 .idea/
 .DS_Store
 Thumbs.db
+st/
