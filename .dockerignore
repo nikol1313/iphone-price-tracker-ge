@@ -1,0 +1,14 @@
+.git
+.gitignore
+.idea
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+*.py[cod]
+.env
+*.env
+pgdata
+postgres_data
+tests
+todo
