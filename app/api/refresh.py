@@ -27,7 +27,7 @@ async def refresh_product(
     except NotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
 
-    # Finish the auth/product validation transaction before network I/O begins.
+
     await session.commit()
 
     try:
