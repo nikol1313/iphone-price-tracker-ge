@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     PROD: bool = False
     JWT_SECRET: SecretStr | None = None
     JWT_ACCESS_TOKEN_EXPIRE_SECONDS: int = Field(default=86400, ge=60)
+    TELEGRAM_BOT_TOKEN: SecretStr | None = None
 
     @property
     def database_url(self) -> str:

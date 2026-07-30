@@ -17,6 +17,7 @@ from app.db.crud import (
 from app.db.db_schemas import ProductCreate, ProductListingCreate, StoreCreate
 from app.db.sess import SESSION
 from app.scraper.scrape_zoommer import BASE_URL, scrape_zoommer
+from app.services.alert_service import check_and_send_alert_notifications
 from app.services.errors import RefreshInProgressError
 
 
@@ -152,6 +153,9 @@ async def run_zoommer_ingestion() -> IngestionSummary:
                     products_found=summary.scraped,
                     products_ingested=summary.ingested,
                 )
+
+            async with session.begin():
+                await check_and_send_alert_notifications(session)
 
             return IngestionSummary(
                 scraped=summary.scraped,

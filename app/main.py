@@ -8,6 +8,7 @@ from app.api import (
     alerts,
     auth,
     listings,
+    notification_settings,
     prices,
     products,
     refresh,
@@ -43,6 +44,6 @@ app.include_router(listings.router)
 app.include_router(prices.router)
 app.include_router(tracked_products.router)
 app.include_router(alerts.router)
+app.include_router(notification_settings.router)
 app.include_router(refresh.router)
-
 

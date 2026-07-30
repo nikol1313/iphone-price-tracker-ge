@@ -7,9 +7,9 @@
   <title>Price Monitor — iPhone prices in Georgia</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css">
-  <script src="/static/app.js" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=20260726-4">
+  <script src="/static/app.js?v=20260730-1" defer></script>
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true">
@@ -25,103 +25,153 @@
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 5H4v14h6M14 8l4 4-4 4M8 12h10"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v5h-5M4 18v-5h5M18 9a7 7 0 0 0-12-2M6 15a7 7 0 0 0 12 2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="i-telegram" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
   </svg>
 
   <header class="topbar">
-    <a class="brand" href="#overview" aria-label="Price Monitor home">
+    <a class="brand" href="/?page=overview" data-page-link="overview" aria-label="Price Monitor home">
       <span class="brand-mark"><svg><use href="#i-activity"/></svg></span>
-      <span>PRICE/MONITOR</span>
+      <span>Price Monitor</span>
     </a>
     <nav aria-label="Primary navigation">
-      <a class="nav-link active" href="#overview"><svg><use href="#chart"/></svg>Overview</a>
-      <a class="nav-link" href="#products"><svg><use href="#box"/></svg>Products</a>
-      <a class="nav-link" href="#alerts"><svg><use href="#bell"/></svg>Alerts</a>
+      <a class="nav-link active" href="/?page=overview" data-page-link="overview"><svg><use href="#i-chart"/></svg>Overview</a>
+      <a class="nav-link" href="/?page=products" data-page-link="products"><svg><use href="#i-box"/></svg>Products</a>
+      <a class="nav-link" href="/?page=alerts" data-page-link="alerts"><svg><use href="#i-bell"/></svg>Alerts</a>
     </nav>
     <div class="account-actions">
       <span class="api-status" id="apiStatus"><span></span>Connecting</span>
+      <button class="ghost-button" id="settingsButton" type="button" aria-label="Settings"><svg><use href="#i-settings"/></svg></button>
       <button class="ghost-button" id="accountButton" type="button"><svg><use href="#i-user"/></svg><span>Sign in</span></button>
     </div>
   </header>
 
-  <main>
-    <section class="hero-compact" id="overview">
-      <p class="hero-tagline">iPhone prices in Georgia</p>
-      <h1 class="hero-title">See the price.<br><span>Track the change.</span></h1>
-    </section>
-
-    <section class="search-band" aria-label="Product search">
-      <form id="searchForm" class="search-form">
-        <svg><use href="#i-search"/></svg>
-        <label class="sr-only" for="searchInput">Search iPhone models</label>
-        <input id="searchInput" name="q" type="search" minlength="2" placeholder="Search model, storage or color" autocomplete="off">
-        <button class="primary-button" type="submit">Search</button>
-      </form>
-      <button class="text-button" id="clearSearch" type="button" hidden>Show all products</button>
-    </section>
-
-    <section class="section" id="products">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Catalog</p>
-          <h2>Products</h2>
+  <main id="mainContent">
+    <div class="page-view" data-page-view="overview" aria-labelledby="overviewTitle">
+      <section class="overview-hero">
+        <div class="overview-intro">
+          <p class="hero-tagline">iPhone prices in Georgia</p>
+          <h1 class="hero-title" id="overviewTitle">Compare prices.<br><span>Track the changes.</span></h1>
+          <p class="hero-lead">Find the right iPhone at the right price, without checking every store yourself.</p>
+          <a class="primary-button overview-cta" href="/?page=products" data-page-link="products" data-focus-search>
+            <svg><use href="#i-search"/></svg>
+            Search iPhone prices
+          </a>
         </div>
-        <p id="productCount" class="count-label">Loading…</p>
-      </div>
-      <div id="productGrid" class="product-grid" aria-live="polite">
-        <div class="loading-state">Loading products from the API…</div>
-      </div>
-      <button class="show-more-button" id="showMoreButton" type="button" hidden>Show more</button>
-    </section>
 
-    <section class="section data-panel" id="historySection" hidden>
-      <div class="section-heading compact">
-        <div>
-          <p class="eyebrow">Selected product</p>
-          <h2 id="historyTitle">Price history</h2>
-          <p id="historyVariant" class="muted"></p>
+        <ul class="overview-features" aria-label="Price Monitor features">
+          <li class="overview-feature">
+            <span class="feature-icon"><svg><use href="#i-search"/></svg></span>
+            <div>
+              <h2>Search and track</h2>
+              <p>Find any iPhone model and keep an eye on the ones that matter.</p>
+            </div>
+          </li>
+          <li class="overview-feature">
+            <span class="feature-icon"><svg><use href="#i-chart"/></svg></span>
+            <div>
+              <h2>See every change</h2>
+              <p>Explore price history through clear, interactive charts.</p>
+            </div>
+          </li>
+          <li class="overview-feature">
+            <span class="feature-icon"><svg><use href="#i-bell"/></svg></span>
+            <div>
+              <h2>Set price alerts</h2>
+              <p>Choose your target price and know when an offer reaches it.</p>
+            </div>
+          </li>
+          <li class="overview-feature">
+            <span class="feature-icon"><svg><use href="#i-box"/></svg></span>
+            <div>
+              <h2>Compare stores</h2>
+              <p>Review prices from multiple stores in one simple view.</p>
+            </div>
+          </li>
+          <li class="overview-feature">
+            <span class="feature-icon"><svg><use href="#i-activity"/></svg></span>
+            <div>
+              <h2>Move quickly</h2>
+              <p>Use a fast, clean interface built to keep the decision easy.</p>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="page-view" data-page-view="products" aria-labelledby="productsTitle" hidden>
+      <section class="search-band" aria-label="Product search">
+        <form id="searchForm" class="search-form">
+          <svg><use href="#i-search"/></svg>
+          <label class="sr-only" for="searchInput">Search iPhone models</label>
+          <input id="searchInput" name="q" type="search" minlength="2" placeholder="Search model, storage or color" autocomplete="off">
+          <button class="primary-button" type="submit">Search</button>
+        </form>
+        <button class="text-button" id="clearSearch" type="button" hidden>Show all products</button>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <div>
+            <h1 id="productsTitle">Products</h1>
+          </div>
+          <p id="productCount" class="count-label">Loading…</p>
         </div>
-        <div class="history-tools">
-          <div id="historySummary" class="summary-strip"></div>
-          <div class="selected-actions">
-            <button class="small-button" id="selectedTrackButton" type="button">Track</button>
-            <button class="small-button" id="selectedAlertButton" type="button">Set alert</button>
+        <div id="productGrid" class="product-grid" aria-live="polite">
+          <div class="loading-state">Loading products from the API…</div>
+        </div>
+        <button class="show-more-button" id="showMoreButton" type="button" hidden>Show more</button>
+      </section>
+
+      <section class="section data-panel" id="historySection" hidden>
+        <div class="section-heading compact">
+          <div>
+            <h2 id="historyTitle">Price history</h2>
+            <p id="historyVariant" class="muted"></p>
+          </div>
+          <div class="history-tools">
+            <div id="historySummary" class="summary-strip"></div>
+            <div class="selected-actions">
+              <button class="small-button" id="selectedTrackButton" type="button">Track</button>
+              <button class="small-button" id="selectedAlertButton" type="button">Set alert</button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="chart-wrap">
-        <svg id="priceChart" role="img" aria-label="Price history chart"></svg>
-        <div id="chartEmpty" class="chart-empty" hidden>No recorded price history for this product.</div>
-      </div>
-    </section>
-
-    <section class="section data-panel" id="storesSection" hidden>
-      <div class="section-heading compact">
-        <div>
-          <p class="eyebrow">Current offers</p>
-          <h2>Store comparison</h2>
+        <div class="chart-wrap">
+          <svg id="priceChart" role="img" aria-label="Price history chart"></svg>
+          <div id="chartEmpty" class="chart-empty" hidden>No recorded price history for this product.</div>
         </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Store</th><th>Price</th><th>Status</th><th>Last checked</th><th><span class="sr-only">Open</span></th></tr></thead>
-          <tbody id="storesBody"></tbody>
-        </table>
-      </div>
-      <div id="storesEmpty" class="empty-inline" hidden>No current store listings for this product.</div>
-    </section>
+      </section>
 
-    <section class="section" id="alerts">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Account</p>
-          <h2>Tracked products & alerts</h2>
+      <section class="section data-panel" id="storesSection" hidden>
+        <div class="section-heading compact">
+          <div>
+            <h2>Store comparison</h2>
+          </div>
         </div>
-      </div>
-      <div id="trackedContent" class="account-panel">
-        <p>Sign in to track products and create price alerts.</p>
-        <button class="primary-button" type="button" data-open-auth>Sign in</button>
-      </div>
-    </section>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Store</th><th>Price</th><th>Status</th><th>Last checked</th><th><span class="sr-only">Open</span></th></tr></thead>
+            <tbody id="storesBody"></tbody>
+          </table>
+        </div>
+        <div id="storesEmpty" class="empty-inline" hidden>No current store listings for this product.</div>
+      </section>
+    </div>
+
+    <div class="page-view" data-page-view="alerts" aria-labelledby="alertsTitle" hidden>
+      <section class="section">
+        <div class="section-heading">
+          <div>
+            <h1 id="alertsTitle">Tracked products & alerts</h1>
+          </div>
+        </div>
+        <div id="trackedContent" class="account-panel">
+          <p>Sign in to track products and create price alerts.</p>
+          <button class="primary-button" type="button" data-open-auth>Sign in</button>
+        </div>
+      </section>
+    </div>
   </main>
 
   <footer>
@@ -131,7 +181,7 @@
 
   <dialog id="authDialog">
     <div class="dialog-head">
-      <div><p class="eyebrow">Account</p><h2 id="authTitle">Sign in</h2></div>
+      <h2 id="authTitle">Sign in</h2>
       <button class="icon-button" id="closeAuth" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
     </div>
     <form id="authForm">
@@ -145,7 +195,7 @@
 
   <dialog id="alertDialog">
     <div class="dialog-head">
-      <div><p class="eyebrow">Price alert</p><h2 id="alertTitle">Set target price</h2></div>
+      <h2 id="alertTitle">Set target price</h2>
       <button class="icon-button" id="closeAlert" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
     </div>
     <form id="alertForm">
@@ -154,6 +204,23 @@
       <label>Currency<input type="text" name="currency" minlength="3" maxlength="3" required value="GEL"></label>
       <p id="alertError" class="form-error" role="alert"></p>
       <button class="primary-button full" type="submit">Create alert</button>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <div class="dialog-head">
+      <h2>Notification Settings</h2>
+      <button class="icon-button" id="closeSettings" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <form id="settingsForm">
+      <div class="settings-section">
+        <h3><svg><use href="#i-telegram"/></svg>Telegram Notifications</h3>
+        <p class="settings-help">Start a chat with the Price Monitor bot, then enter your numeric Telegram chat ID. Leave it empty to disable notifications.</p>
+        <label>Chat ID<input type="text" name="telegram_chat_id" inputmode="numeric" maxlength="32" placeholder="For example: 123456789" autocomplete="off"></label>
+      </div>
+      <p id="settingsError" class="form-error" role="alert"></p>
+      <p id="settingsSuccess" class="form-success" role="status"></p>
+      <button class="primary-button full" type="submit">Save Settings</button>
     </form>
   </dialog>
 

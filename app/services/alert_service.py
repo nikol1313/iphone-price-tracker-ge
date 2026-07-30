@@ -1,3 +1,6 @@
+import logging
+from datetime import UTC, datetime
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,9 +14,22 @@ from app.db.db_schemas import (
     ProductSummary,
     TrackedProductResponse,
 )
-from app.db.models import PriceAlert, Product, ProductListing, TrackedProduct
+from app.db.models import (
+    PriceAlert,
+    Product,
+    ProductListing,
+    Store,
+    TrackedProduct,
+    User,
+)
 from app.services.errors import ConflictError, NotFoundError
 from app.services.product_service import require_active_product
+from app.services.telegram_service import (
+    TelegramNotificationError,
+    send_price_alert_notification,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _lowest_price(product_id_column, currency_column=None):
@@ -293,4 +309,85 @@ async def delete_alert(
     if alert is None:
         raise NotFoundError("Alert not found")
     await session.delete(alert)
+    await session.flush()
+
+
+async def check_and_send_alert_notifications(session: AsyncSession) -> None:
+    """Send each newly triggered alert once to its owner's configured chat."""
+    current_price = _lowest_price(Product.id, PriceAlert.currency)
+
+    rows = (
+        await session.execute(
+            select(
+                PriceAlert,
+                Product,
+                User.telegram_chat_id,
+                current_price.label("current_price"),
+            )
+            .join(Product, Product.id == PriceAlert.product_id)
+            .join(User, User.id == PriceAlert.user_id)
+            .where(
+                Product.is_active.is_(True),
+                User.is_active.is_(True),
+                User.telegram_chat_id.is_not(None),
+                PriceAlert.notified_at.is_(None),
+            )
+        )
+    ).all()
+
+    for alert, product, chat_id, price in rows:
+        if price is not None and price <= alert.target_price:
+            listing_row = (
+                await session.execute(
+                    select(ProductListing, Store.title)
+                    .join(Store, Store.id == ProductListing.store_id)
+                    .where(
+                        ProductListing.product_id == product.id,
+                        ProductListing.is_active.is_(True),
+                        ProductListing.is_available.is_(True),
+                        ProductListing.currency == alert.currency,
+                    )
+                    .order_by(ProductListing.current_price, ProductListing.id)
+                    .limit(1)
+                )
+            ).one_or_none()
+            listing_result = listing_row[0] if listing_row else None
+            store_name = listing_row[1] if listing_row else None
+
+            model_includes_brand = product.model.lower().startswith(
+                product.brand.lower()
+            )
+            product_name = (
+                product.model
+                if model_includes_brand
+                else f"{product.brand} {product.model}"
+            )
+            product_variant = (
+                f"{product.storage or ''} {product.color or ''}".strip()
+                or "Standard"
+            )
+
+            try:
+                await send_price_alert_notification(
+                    chat_id=chat_id,
+                    product_name=product_name,
+                    product_variant=product_variant,
+                    target_price=alert.target_price,
+                    current_price=price,
+                    currency=alert.currency,
+                    store_name=store_name,
+                    product_url=(
+                        listing_result.product_url if listing_result else None
+                    ),
+                )
+            except (TelegramNotificationError, RuntimeError) as error:
+                logger.warning(
+                    "Telegram delivery failed for alert %s: %s",
+                    alert.id,
+                    error,
+                )
+                continue
+
+            alert.notified_at = datetime.now(UTC)
+
     await session.flush()

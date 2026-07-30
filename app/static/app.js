@@ -3,13 +3,24 @@ const state = {
   tracked: [],
   selectedId: null,
   visibleCount: 10,
+  currentPage: "overview",
   token: sessionStorage.getItem("priceMonitorToken"),
   email: sessionStorage.getItem("priceMonitorEmail"),
   authMode: "login",
 };
 
+// Remove credentials saved by the previous browser-only implementation.
+localStorage.removeItem("telegramBotToken");
+localStorage.removeItem("telegramChatId");
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const pages = new Set(["overview", "products", "alerts"]);
+const pageTitles = {
+  overview: "Overview",
+  products: "Products",
+  alerts: "Alerts",
+};
 const money = (value, currency = "GEL") => value == null
   ? "No price"
   : new Intl.NumberFormat("en", { style: "currency", currency }).format(Number(value));
@@ -27,7 +38,41 @@ const safeUrl = value => {
 const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, char => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
 })[char]);
+const productName = product => {
+  const brand = String(product?.brand || "").trim();
+  const model = String(product?.model || "").trim();
+  return model.toLowerCase().startsWith(brand.toLowerCase()) ? model : [brand, model].filter(Boolean).join(" ");
+};
 const variant = product => product ? [product.storage, product.color].filter(Boolean).join(" · ") || "Storage and color not specified" : "Storage and color not specified";
+
+function pageFromLocation() {
+  const requestedPage = new URLSearchParams(window.location.search).get("page");
+  return pages.has(requestedPage) ? requestedPage : "overview";
+}
+
+function showPage(page, updateHistory = false) {
+  const nextPage = pages.has(page) ? page : "overview";
+  state.currentPage = nextPage;
+
+  $$("[data-page-view]").forEach(view => {
+    view.hidden = view.dataset.pageView !== nextPage;
+  });
+  $$(".nav-link[data-page-link]").forEach(link => {
+    const isCurrent = link.dataset.pageLink === nextPage;
+    link.classList.toggle("active", isCurrent);
+    if (isCurrent) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+
+  document.title = `${pageTitles[nextPage]} — Price Monitor`;
+  if (updateHistory) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", nextPage);
+    url.hash = "";
+    window.history.pushState({ page: nextPage }, "", url);
+  }
+  window.scrollTo(0, 0);
+}
 
 async function api(path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -68,8 +113,6 @@ async function loadProducts(query = "") {
     $("#clearSearch").hidden = !query;
     if (!query && state.products && state.products.length) {
       const priced = state.products.find(item => item.lowest_price != null) || state.products[0];
-      $("#heroPrice").textContent = money(priced.lowest_price, priced.currency || "GEL");
-      $("#heroModel").textContent = `${priced.brand} ${priced.model}`;
       selectProduct(priced.id);
     }
   } catch (error) {
@@ -93,7 +136,7 @@ function renderProducts(total = state.products?.length || 0) {
   showMore.textContent = `Show more (${state.products.length - state.visibleCount} remaining)`;
   grid.innerHTML = visibleProducts.map(product => `
     <article class="product-card ${product.id === state.selectedId ? "selected" : ""}" data-product-id="${product.id}" tabindex="0">
-      <h3>${escapeHtml(product.brand)} ${escapeHtml(product.model)}</h3>
+      <h3>${escapeHtml(productName(product))}</h3>
       <div class="price-row">
         <div class="price">
           <strong>${escapeHtml(money(product.lowest_price, product.currency || "GEL"))}</strong>
@@ -110,7 +153,7 @@ async function selectProduct(productId) {
   $$(".product-card").forEach(card => card.classList.toggle("selected", Number(card.dataset.productId) === state.selectedId));
   $("#historySection").hidden = false;
   $("#storesSection").hidden = false;
-  $("#historyTitle").textContent = `${product.brand} ${product.model}`;
+  $("#historyTitle").textContent = productName(product);
   $("#historyVariant").textContent = variant(product);
   updateSelectedActions();
   $("#historySummary").innerHTML = `
@@ -172,7 +215,7 @@ function renderChart(items, product) {
   const lastDate = new Date(ordered.at(-1).recorded_at);
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = `
-    <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6ff4a" stop-opacity=".22"/><stop offset="1" stop-color="#c6ff4a" stop-opacity="0"/></linearGradient></defs>
+    <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#10B981" stop-opacity=".18"/><stop offset="1" stop-color="#10B981" stop-opacity="0"/></linearGradient></defs>
     ${grid}<polygon class="chart-area" points="${area}"/><polyline class="chart-line" points="${points}"/>${dots}
     <text class="chart-label" x="${left}" y="${H-16}">${firstDate.toLocaleDateString()}</text>
     <text class="chart-label" text-anchor="end" x="${W-right}" y="${H-16}">${lastDate.toLocaleDateString()}</text>`;
@@ -240,7 +283,7 @@ function renderTracked() {
   }
   content.innerHTML = `<div class="tracked-list">${state.tracked.map(item => `
     <div class="tracked-row">
-      <div><h3>${escapeHtml(item.product.brand)} ${escapeHtml(item.product.model)}</h3><p>${escapeHtml(variant(item.product))}</p></div>
+      <div><h3>${escapeHtml(productName(item.product))}</h3><p>${escapeHtml(variant(item.product))}</p></div>
       <div>
         <p>${escapeHtml(money(item.product.lowest_price, item.product.currency || "GEL"))} current low</p>
         ${item.active_alert
@@ -291,6 +334,25 @@ function openAlert(productId) {
   form.target_price.value = product.lowest_price || "";
   $("#alertError").textContent = "";
   $("#alertDialog").showModal();
+}
+
+async function openSettings() {
+  if (!state.token) {
+    openAuth();
+    showToast("Sign in to configure Telegram notifications.");
+    return;
+  }
+
+  const form = $("#settingsForm");
+  $("#settingsError").textContent = "";
+  $("#settingsSuccess").textContent = "";
+  $("#settingsDialog").showModal();
+  try {
+    const settings = await api("/notification-settings/telegram");
+    form.telegram_chat_id.value = settings.telegram_chat_id || "";
+  } catch (error) {
+    $("#settingsError").textContent = error.message;
+  }
 }
 
 async function track(productId) {
@@ -351,10 +413,12 @@ $("#trackedContent").addEventListener("click", event => {
   if (event.target.closest("[data-open-auth]")) openAuth();
 });
 $("#accountButton").addEventListener("click", () => state.token ? logout() : openAuth());
+$("#settingsButton").addEventListener("click", () => openSettings());
 $("#selectedTrackButton").addEventListener("click", () => state.selectedId && track(state.selectedId));
 $("#selectedAlertButton").addEventListener("click", () => state.selectedId && openAlert(state.selectedId));
 $("#closeAuth").addEventListener("click", () => $("#authDialog").close());
 $("#closeAlert").addEventListener("click", () => $("#alertDialog").close());
+$("#closeSettings").addEventListener("click", () => $("#settingsDialog").close());
 $("#authMode").addEventListener("click", () => {
   state.authMode = state.authMode === "login" ? "register" : "login";
   const registering = state.authMode === "register";
@@ -402,9 +466,41 @@ $("#alertForm").addEventListener("submit", async event => {
     $("#alertError").textContent = error.message;
   }
 });
+$("#settingsForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const chatId = form.get("telegram_chat_id").trim();
+
+  $("#settingsError").textContent = "";
+  $("#settingsSuccess").textContent = "";
+
+  try {
+    await api("/notification-settings/telegram", {
+      method: "PUT",
+      body: JSON.stringify({ telegram_chat_id: chatId || null }),
+    });
+    $("#settingsSuccess").textContent = chatId
+      ? "Telegram notifications enabled."
+      : "Telegram notifications disabled.";
+    setTimeout(() => $("#settingsDialog").close(), 1000);
+  } catch (error) {
+    $("#settingsError").textContent = error.message;
+  }
+});
 document.addEventListener("click", event => {
+  const pageLink = event.target.closest("[data-page-link]");
+  if (pageLink && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+    event.preventDefault();
+    showPage(pageLink.dataset.pageLink, true);
+    if (pageLink.hasAttribute("data-focus-search")) {
+      requestAnimationFrame(() => $("#searchInput")?.focus());
+    }
+    return;
+  }
   if (event.target.closest("[data-open-auth]")) openAuth();
 });
+window.addEventListener("popstate", () => showPage(pageFromLocation()));
 
+showPage(pageFromLocation());
 loadProducts();
 loadTracked();

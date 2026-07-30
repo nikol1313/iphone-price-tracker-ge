@@ -66,6 +66,32 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class TelegramSettingsUpdate(BaseModel):
+    telegram_chat_id: str | None
+
+    @field_validator("telegram_chat_id")
+    @classmethod
+    def valid_chat_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        digits = normalized.removeprefix("-")
+        if (
+            len(normalized) > 32
+            or not digits.isascii()
+            or not digits.isdigit()
+            or int(normalized) == 0
+        ):
+            raise ValueError("Telegram chat ID must be a non-zero integer")
+        return normalized
+
+
+class TelegramSettingsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    telegram_chat_id: str | None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"

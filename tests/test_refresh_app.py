@@ -101,6 +101,7 @@ def test_openapi_contains_all_requested_routes() -> None:
         "/products/{product_id}/alerts",
         "/alerts",
         "/alerts/{alert_id}",
+        "/notification-settings/telegram",
         "/products/{product_id}/refresh",
     }
     assert set(app.openapi()["paths"]) == expected
