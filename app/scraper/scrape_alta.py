@@ -262,7 +262,7 @@ def scrape_alta(
 
 def main() -> None:
     products = scrape_alta()
-    print(json.dumps(products, ensure_ascii=False, indent=2))
+    print(json.dumps(products, ensure_ascii=False, indent=3))
 
 
 if __name__ == "__main__":
