@@ -98,7 +98,6 @@ def products_from_next_data(soup: BeautifulSoup) -> list[dict[str, object]]:
         price = item.get("price")
         category_id = item.get("categoryId")
 
-        # Filter to only include mobile phones (categoryId 16) and iPhones
         if not isinstance(name, str) or not isinstance(price, (int, float)):
             continue
         if category_id != 16 or "iphone" not in name.lower():
