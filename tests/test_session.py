@@ -57,5 +57,5 @@ async def test_get_conn_rolls_back_and_closes_after_exception(
     assert fake.closed is True
 
 
-def test_engine_uses_pre_ping() -> None:
+def test_engine_uses_pre_ping():
     assert sess.engine.pool._pre_ping is True
