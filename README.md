@@ -1,3 +1,3 @@
 #  iPhone Price Monitor Georgia
 
-currently working on it
+search iphone, track price, buy smart
