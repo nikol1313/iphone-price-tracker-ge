@@ -9,7 +9,6 @@ const state = {
   authMode: "login",
 };
 
-// Remove credentials saved by the previous browser-only implementation.
 localStorage.removeItem("telegramBotToken");
 localStorage.removeItem("telegramChatId");
 
