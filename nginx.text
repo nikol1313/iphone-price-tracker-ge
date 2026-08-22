@@ -29,6 +29,7 @@ server {
     }
 
     # Frontend SPA Catch-All
+    # safe val
     location / {
         root /var/www/iphone-price-monitoring/static;
         try_files $uri $uri/ /index.html;
