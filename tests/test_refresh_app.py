@@ -87,7 +87,7 @@ async def test_lifespan_disposes_engine(monkeypatch: pytest.MonkeyPatch) -> None
     dispose.assert_awaited_once()
 
 
-def test_openapi_contains_all_requested_routes() -> None:
+def test_openapi_contains_all_requested_routes():
     expected = {
         "/auth/register",
         "/auth/login",
