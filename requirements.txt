@@ -8,6 +8,6 @@ django-request
 fastapi
 uvicorn[standard]
 pyjwt
-pwdlib[argon2]
+pwdlib
 email-validator
 httpx
