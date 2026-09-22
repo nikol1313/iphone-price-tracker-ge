@@ -24,3 +24,7 @@ A price-monitoring tool for comparing iPhone prices in Georgia and keeping track
 ## Goal
 
 Make it easier to find and monitor iPhone prices in Georgia without manually checking multiple stores.
+
+## Status
+
+i currently only have backend but in the future i will implement a simple front end 
