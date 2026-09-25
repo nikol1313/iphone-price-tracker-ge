@@ -1,7 +1,5 @@
 # iPhone Price Monitor Georgia
 
-> Search iPhones, track prices, buy smart.
-
 A price-monitoring tool for comparing iPhone prices in Georgia and keeping track of price changes over time.
 
 ## Features
