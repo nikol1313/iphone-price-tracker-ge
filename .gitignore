@@ -13,7 +13,6 @@ __pycache__/
 .mypy_cache/
 pgdata/
 postgres_data/
-.vscode/
 .idea/
 .DS_Store
 Thumbs.db
