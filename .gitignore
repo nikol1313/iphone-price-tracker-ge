@@ -17,3 +17,4 @@ postgres_data/
 .DS_Store
 Thumbs.db
 st/
+.hidden/
