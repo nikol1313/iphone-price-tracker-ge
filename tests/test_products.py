@@ -3,6 +3,7 @@ from decimal import Decimal
 
 import httpx
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models import PriceHist, ProductListing, Store
@@ -207,6 +208,7 @@ async def test_listing_and_merged_price_history_ordering(
     detail = await client.get(f"/products/{product_id}")
     assert detail.json()["lowest_price"] == "2500.00"
     assert detail.json()["listing_count"] == 3
+    assert detail.json()["available_listing_count"] == 2
 
     listings = await client.get(f"/products/{product_id}/listings")
     assert [item["current_price"] for item in listings.json()["items"]] == [
@@ -219,3 +221,13 @@ async def test_listing_and_merged_price_history_ordering(
         "2500.00",
         "3100.00",
     ]
+
+    async with session_factory() as session:
+        listings = list(await session.scalars(select(ProductListing)))
+        for listing in listings:
+            listing.is_available = False
+        await session.commit()
+
+    unavailable_detail = await client.get(f"/products/{product_id}")
+    assert unavailable_detail.json()["lowest_price"] == "2000.00"
+    assert unavailable_detail.json()["available_listing_count"] == 0

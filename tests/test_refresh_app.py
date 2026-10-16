@@ -89,6 +89,7 @@ async def test_lifespan_disposes_engine(monkeypatch: pytest.MonkeyPatch) -> None
 
 def test_openapi_contains_all_requested_routes() -> None:
     expected = {
+        "/",
         "/auth/register",
         "/auth/login",
         "/search",

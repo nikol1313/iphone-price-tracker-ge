@@ -101,6 +101,9 @@ async def ingest_zoommer(
 
     for item in products:
         product = await get_or_create_product(session, _product_create(item))
+        image_url = _optional_text(item, "image_url")
+        if image_url:
+            product.image_url = image_url
         result = await upsert_product_listing(
             session,
             ProductListingCreate(
@@ -109,6 +112,16 @@ async def ingest_zoommer(
                 product_url=_required_text(item, "url"),
                 current_price=_price(item),
                 currency=_optional_text(item, "currency") or "GEL",
+                is_available=(
+                    item.get("is_available")
+                    if isinstance(item.get("is_available"), bool)
+                    else True
+                ),
+                external_product_id=(
+                    str(item["external_product_id"])
+                    if item.get("external_product_id") is not None
+                    else None
+                ),
             ),
         )
         listings_created += int(result.created)

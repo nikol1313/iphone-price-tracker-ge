@@ -1,7 +1,9 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 
 from app.api import (
@@ -46,4 +48,11 @@ app.include_router(tracked_products.router)
 app.include_router(alerts.router)
 app.include_router(notification_settings.router)
 app.include_router(refresh.router)
+
+app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
+
+
+@app.get("/")
+async def serve_index(request: Request) -> FileResponse:
+    return FileResponse("app/static/index.html")
 

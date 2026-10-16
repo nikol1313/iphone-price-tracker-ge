@@ -47,6 +47,7 @@ class Product(Base):
     model: Mapped[str] = mapped_column(String(200), nullable=False)
     storage: Mapped[str | None] = mapped_column(String(20))
     color: Mapped[str | None] = mapped_column(String(50))
+    image_url: Mapped[str | None] = mapped_column(String(1000))
     identity_key: Mapped[str] = mapped_column(String(512), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

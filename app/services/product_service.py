@@ -24,7 +24,7 @@ from app.services.normalization import (
 
 
 def _lowest_price_expression():
-    return (
+    available = (
         select(ProductListing.current_price)
         .where(
             ProductListing.product_id == Product.id,
@@ -36,10 +36,22 @@ def _lowest_price_expression():
         .correlate(Product)
         .scalar_subquery()
     )
+    last_listed = (
+        select(ProductListing.current_price)
+        .where(
+            ProductListing.product_id == Product.id,
+            ProductListing.is_active.is_(True),
+        )
+        .order_by(ProductListing.current_price, ProductListing.id)
+        .limit(1)
+        .correlate(Product)
+        .scalar_subquery()
+    )
+    return func.coalesce(available, last_listed)
 
 
 def _lowest_currency_expression():
-    return (
+    available = (
         select(ProductListing.currency)
         .where(
             ProductListing.product_id == Product.id,
@@ -51,6 +63,18 @@ def _lowest_currency_expression():
         .correlate(Product)
         .scalar_subquery()
     )
+    last_listed = (
+        select(ProductListing.currency)
+        .where(
+            ProductListing.product_id == Product.id,
+            ProductListing.is_active.is_(True),
+        )
+        .order_by(ProductListing.current_price, ProductListing.id)
+        .limit(1)
+        .correlate(Product)
+        .scalar_subquery()
+    )
+    return func.coalesce(available, last_listed)
 
 
 def _listing_count_expression():
@@ -65,12 +89,26 @@ def _listing_count_expression():
     )
 
 
+def _available_listing_count_expression():
+    return (
+        select(func.count(ProductListing.id))
+        .where(
+            ProductListing.product_id == Product.id,
+            ProductListing.is_active.is_(True),
+            ProductListing.is_available.is_(True),
+        )
+        .correlate(Product)
+        .scalar_subquery()
+    )
+
+
 def _product_select() -> Select:
     return select(
         Product,
         _lowest_price_expression().label("lowest_price"),
         _lowest_currency_expression().label("currency"),
         _listing_count_expression().label("listing_count"),
+        _available_listing_count_expression().label("available_listing_count"),
     )
 
 
@@ -79,6 +117,7 @@ def _summary(
     lowest_price: Decimal | None,
     currency: str | None,
     listing_count: int,
+    available_listing_count: int,
 ) -> ProductSummary:
     return ProductSummary(
         id=product.id,
@@ -86,9 +125,11 @@ def _summary(
         model=product.model,
         storage=product.storage,
         color=product.color,
+        image_url=product.image_url,
         lowest_price=lowest_price,
         currency=currency,
         listing_count=listing_count,
+        available_listing_count=available_listing_count,
     )
 
 
@@ -129,7 +170,7 @@ async def create_product(
             await session.flush()
     except IntegrityError as error:
         raise ConflictError("A product with this identity already exists") from error
-    return _summary(product, None, None, 0)
+    return _summary(product, None, None, 0, 0)
 
 
 def _apply_product_filters(
@@ -199,7 +240,10 @@ async def list_products(
     )
     rows = (await session.execute(statement.limit(limit).offset(offset))).all()
     return Page(
-        items=[_summary(product, price, currency, count) for product, price, currency, count in rows],
+        items=[
+            _summary(product, price, currency, count, available_count)
+            for product, price, currency, count, available_count in rows
+        ],
         total=total,
         limit=limit,
         offset=offset,
@@ -220,7 +264,7 @@ async def get_product_summary(
     ).one_or_none()
     if row is None:
         raise NotFoundError("Product not found")
-    return _summary(row[0], row[1], row[2], row[3])
+    return _summary(row[0], row[1], row[2], row[3], row[4])
 
 
 async def update_product(
@@ -291,7 +335,10 @@ async def search_products(
         )
     ).all()
     return Page(
-        items=[_summary(product, price, currency, count) for product, price, currency, count in rows],
+        items=[
+            _summary(product, price, currency, count, available_count)
+            for product, price, currency, count, available_count in rows
+        ],
         total=total,
         limit=limit,
         offset=offset,

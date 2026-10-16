@@ -163,12 +163,14 @@ class ProductUpdate(BaseModel):
 class ProductResponse(ProductBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    image_url: str | None = None
 
 
 class ProductSummary(ProductResponse):
     lowest_price: Decimal | None
     currency: str | None
     listing_count: int
+    available_listing_count: int = 0
 
 
 class ProductListingCreate(BaseModel):

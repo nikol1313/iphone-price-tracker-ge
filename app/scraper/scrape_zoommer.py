@@ -108,6 +108,63 @@ def products_from_json_ld(soup: BeautifulSoup) -> list[dict[str, object]]:
     return products
 
 
+def products_from_next_data(soup: BeautifulSoup) -> list[dict[str, object]]:
+    """Read the server-rendered product payload from Zoommer's Next.js page."""
+    next_data_script = soup.select_one("script[id='__NEXT_DATA__']")
+    if not next_data_script:
+        return []
+
+    try:
+        script_text = next_data_script.string or next_data_script.get_text(strip=True)
+        data = json.loads(script_text)
+    except (json.JSONDecodeError, AttributeError):
+        return []
+
+    try:
+        products = data["props"]["pageProps"]["initialFilteredProducts"]["products"]
+    except (KeyError, TypeError):
+        return []
+
+    if not isinstance(products, list):
+        return []
+
+    parsed: list[dict[str, object]] = []
+    for item in products:
+        if not isinstance(item, dict):
+            continue
+
+        name = item.get("name")
+        route = item.get("route")
+        price = parse_price(item.get("price", ""))
+        if (
+            not isinstance(name, str)
+            or "iphone" not in name.casefold()
+            or not isinstance(route, str)
+            or not route.strip()
+            or price is None
+            or price <= 0
+        ):
+            continue
+
+        image_url = item.get("imageUrl")
+        stock = item.get("isInStock")
+        product: dict[str, object] = {
+            "name": name.strip(),
+            "price": price,
+            "currency": "GEL",
+            "url": urljoin(BASE_URL, f"/{route.lstrip('/')}"),
+            "image_url": image_url if isinstance(image_url, str) else None,
+            "store": "Zoommer",
+            "is_available": stock if isinstance(stock, bool) else True,
+        }
+        product_id = item.get("id")
+        if product_id is not None:
+            product["external_product_id"] = str(product_id)
+        parsed.append(product)
+
+    return parsed
+
+
 def products_from_html_cards(soup: BeautifulSoup) -> list[dict[str, object]]:
     products: list[dict[str, object]] = []
 
@@ -260,7 +317,11 @@ async def scrape_zoommer(
         )
 
     soup = BeautifulSoup(response.text, "html.parser")
-    return products_from_json_ld(soup) or products_from_html_cards(soup)
+    return (
+        products_from_json_ld(soup)
+        or products_from_next_data(soup)
+        or products_from_html_cards(soup)
+    )
 
 
 async def main() -> None:

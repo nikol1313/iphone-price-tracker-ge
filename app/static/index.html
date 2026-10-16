@@ -3,13 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Monitor iPhone prices across Georgian stores.">
-  <title>Price Monitor — iPhone prices in Georgia</title>
+  <meta name="description" content="Compare iPhone prices from Georgian stores, explore price history, and get notified when prices drop.">
+  <meta name="theme-color" content="#111a2b">
+  <title>Price Monitor — iPhone deals in Georgia</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=20260726-4">
-  <script src="/static/app.js?v=20260730-1" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/base.css?v=20261016-7">
+  <link rel="stylesheet" href="/static/css/shell.css?v=20261016-7">
+  <link rel="stylesheet" href="/static/css/catalog.css?v=20261016-7">
+  <link rel="stylesheet" href="/static/css/overlays.css?v=20261016-7">
+  <link rel="stylesheet" href="/static/css/responsive.css?v=20261016-7">
+  <script type="module" src="/static/js/app.js?v=20261016-8"></script>
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true">
@@ -32,17 +37,35 @@
   <header class="topbar">
     <a class="brand" href="/?page=overview" data-page-link="overview" aria-label="Price Monitor home">
       <span class="brand-mark"><svg><use href="#i-activity"/></svg></span>
-      <span>Price Monitor</span>
+      <span class="brand-copy"><strong>Price Monitor</strong><small>GEORGIA</small></span>
     </a>
     <nav aria-label="Primary navigation">
-      <a class="nav-link active" href="/?page=overview" data-page-link="overview"><svg><use href="#i-chart"/></svg>Overview</a>
-      <a class="nav-link" href="/?page=products" data-page-link="products"><svg><use href="#i-box"/></svg>Products</a>
-      <a class="nav-link" href="/?page=alerts" data-page-link="alerts"><svg><use href="#i-bell"/></svg>Alerts</a>
+      <a class="nav-link active" href="/?page=overview" data-page-link="overview"><svg><use href="#i-chart"/></svg>Discover</a>
+      <a class="nav-link" href="/?page=products" data-page-link="products"><svg><use href="#i-box"/></svg>iPhones</a>
+      <a class="nav-link" href="/?page=alerts" data-page-link="alerts"><svg><use href="#i-bell"/></svg>Watchlist</a>
     </nav>
     <div class="account-actions">
       <span class="api-status" id="apiStatus"><span></span>Connecting</span>
-      <button class="ghost-button" id="settingsButton" type="button" aria-label="Settings"><svg><use href="#i-settings"/></svg></button>
-      <button class="ghost-button" id="accountButton" type="button"><svg><use href="#i-user"/></svg><span>Sign in</span></button>
+      <button class="account-button" id="accountButton" type="button" aria-label="Sign in" aria-haspopup="true" aria-expanded="false"><svg><use href="#i-user"/></svg></button>
+      <section class="account-menu" id="accountMenu" aria-label="Account menu" hidden>
+        <div class="account-menu-heading">
+          <span class="account-avatar-small" id="accountMenuAvatar">?</span>
+          <div><strong id="accountMenuName">Guest</strong><span id="accountMenuEmail">Sign in to manage your account</span></div>
+        </div>
+        <p class="menu-label">NOTIFICATIONS</p>
+        <button class="notification-option" type="button" data-notification="telegram">
+          <span class="notification-icon telegram-icon"><svg><use href="#i-telegram"/></svg></span>
+          <span><strong>Telegram</strong><small>Connect a chat for price alerts</small></span>
+          <span class="option-arrow">›</span>
+        </button>
+        <button class="notification-option" type="button" data-notification="email">
+          <span class="notification-icon email-icon"><svg><use href="#i-user"/></svg></span>
+          <span><strong>Email</strong><small>Use your account email address</small></span>
+          <span class="option-arrow">›</span>
+        </button>
+        <button class="signout-button" id="signOutButton" type="button" hidden><svg><use href="#i-logout"/></svg>Sign out</button>
+        <button class="signin-menu-button" id="signInMenuButton" type="button">Sign in to your account</button>
+      </section>
     </div>
   </header>
 
@@ -50,52 +73,13 @@
     <div class="page-view" data-page-view="overview" aria-labelledby="overviewTitle">
       <section class="overview-hero">
         <div class="overview-intro">
-          <p class="hero-tagline">iPhone prices in Georgia</p>
-          <h1 class="hero-title" id="overviewTitle">Compare prices.<br><span>Track the changes.</span></h1>
-          <p class="hero-lead">Find the right iPhone at the right price, without checking every store yourself.</p>
+          <p class="hero-tagline">IPHONE PRICE TRACKER · GEORGIA</p>
+          <h1 class="hero-title" id="overviewTitle">iPhone prices,<br><span>without the guesswork.</span></h1>
+          <p class="hero-lead">Compare local listings and follow prices over time. Set an alert and buy when it suits you.</p>
           <a class="primary-button overview-cta" href="/?page=products" data-page-link="products" data-focus-search>
-            <svg><use href="#i-search"/></svg>
-            Search iPhone prices
+            Browse iPhones <svg><use href="#i-external"/></svg>
           </a>
         </div>
-
-        <ul class="overview-features" aria-label="Price Monitor features">
-          <li class="overview-feature">
-            <span class="feature-icon"><svg><use href="#i-search"/></svg></span>
-            <div>
-              <h2>Search and track</h2>
-              <p>Find any iPhone model and keep an eye on the ones that matter.</p>
-            </div>
-          </li>
-          <li class="overview-feature">
-            <span class="feature-icon"><svg><use href="#i-chart"/></svg></span>
-            <div>
-              <h2>See every change</h2>
-              <p>Explore price history through clear, interactive charts.</p>
-            </div>
-          </li>
-          <li class="overview-feature">
-            <span class="feature-icon"><svg><use href="#i-bell"/></svg></span>
-            <div>
-              <h2>Set price alerts</h2>
-              <p>Choose your target price and know when an offer reaches it.</p>
-            </div>
-          </li>
-          <li class="overview-feature">
-            <span class="feature-icon"><svg><use href="#i-box"/></svg></span>
-            <div>
-              <h2>Compare stores</h2>
-              <p>Review prices from multiple stores in one simple view.</p>
-            </div>
-          </li>
-          <li class="overview-feature">
-            <span class="feature-icon"><svg><use href="#i-activity"/></svg></span>
-            <div>
-              <h2>Move quickly</h2>
-              <p>Use a fast, clean interface built to keep the decision easy.</p>
-            </div>
-          </li>
-        </ul>
       </section>
     </div>
 
@@ -113,7 +97,9 @@
       <section class="section">
         <div class="section-heading">
           <div>
-            <h1 id="productsTitle">Products</h1>
+            <p class="section-kicker">THE LINEUP</p>
+            <h1 id="productsTitle">Find your iPhone</h1>
+            <p class="section-description">Compare current offers and explore how prices have moved.</p>
           </div>
           <p id="productCount" class="count-label">Loading…</p>
         </div>
@@ -163,7 +149,9 @@
       <section class="section">
         <div class="section-heading">
           <div>
-            <h1 id="alertsTitle">Tracked products & alerts</h1>
+            <p class="section-kicker">YOUR SAVED PICKS</p>
+            <h1 id="alertsTitle">Your watchlist</h1>
+            <p class="section-description">Keep an eye on the iPhones you want and the prices you’re waiting for.</p>
           </div>
         </div>
         <div id="trackedContent" class="account-panel">
@@ -175,7 +163,7 @@
   </main>
 
   <footer>
-    <span>iPhone Price Monitor Georgia</span>
+    <span>Made for smarter iPhone shopping in Georgia.</span>
     <a href="/docs">API documentation <svg><use href="#i-external"/></svg></a>
   </footer>
 
@@ -207,21 +195,31 @@
     </form>
   </dialog>
 
-  <dialog id="settingsDialog">
+  <dialog id="telegramDialog" class="settings-dialog">
     <div class="dialog-head">
-      <h2>Notification Settings</h2>
-      <button class="icon-button" id="closeSettings" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+      <div><p class="section-kicker">PRICE ALERTS</p><h2>Telegram notifications</h2></div>
+      <button class="icon-button" id="closeTelegram" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
     </div>
-    <form id="settingsForm">
-      <div class="settings-section">
-        <h3><svg><use href="#i-telegram"/></svg>Telegram Notifications</h3>
-        <p class="settings-help">Start a chat with the Price Monitor bot, then enter your numeric Telegram chat ID. Leave it empty to disable notifications.</p>
-        <label>Chat ID<input type="text" name="telegram_chat_id" inputmode="numeric" maxlength="32" placeholder="For example: 123456789" autocomplete="off"></label>
-      </div>
-      <p id="settingsError" class="form-error" role="alert"></p>
-      <p id="settingsSuccess" class="form-success" role="status"></p>
-      <button class="primary-button full" type="submit">Save Settings</button>
+    <form id="telegramForm">
+      <p class="settings-help">Enter your Telegram chat ID. The bot token stays on the server; never enter your Telegram password here.</p>
+      <label>Telegram chat ID<input type="text" name="telegram_chat_id" inputmode="numeric" maxlength="32" placeholder="For example: 123456789" autocomplete="off"></label>
+      <p id="telegramError" class="form-error" role="alert"></p>
+      <p id="telegramSuccess" class="form-success" role="status"></p>
+      <button class="primary-button full" type="submit">Save chat ID</button>
     </form>
+  </dialog>
+
+  <dialog id="emailDialog" class="settings-dialog">
+    <div class="dialog-head">
+      <div><p class="section-kicker">PRICE ALERTS</p><h2>Email notifications</h2></div>
+      <button class="icon-button" id="closeEmail" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <div class="email-settings-content">
+      <p class="settings-help">Price Monitor uses the email address on your account. Email delivery is not configured yet, so alerts are not sent by email at this time.</p>
+      <label>Account email<input id="accountEmailInput" type="email" readonly></label>
+      <p class="settings-note">No email password or provider credentials are needed here.</p>
+      <button class="primary-button full" id="closeEmailDone" type="button">Done</button>
+    </div>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
