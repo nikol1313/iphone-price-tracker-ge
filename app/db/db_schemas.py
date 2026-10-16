@@ -49,7 +49,7 @@ class StoreResponse(StoreCreate):
 
 class UserCredentials(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=8, max_length=130)
 
     @field_validator("email")
     @classmethod

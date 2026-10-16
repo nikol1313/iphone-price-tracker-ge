@@ -67,7 +67,7 @@ Browser -> Nginx -> FastAPI routes/services ------------+
 - Zoommer is currently connected to the automated ingestion flow. The Alta scraper is not yet wired into that flow.
 - Catalog refresh is manual; scheduled background crawling is not set up yet.
 - Retailer HTML can change, so scraper results should be monitored and parser coverage maintained.
-- The admin setup helper requires `ADMIN_EMAIL` and an `ADMIN_PASSWORD` of at least 12 characters; never use a shared default password.
+- The admin setup helper requires `ADMIN_EMAIL` and `ADMIN_PASSWORD` of at least 12 characters; never use a shared default password.
 - The Compose fallback credentials are for local development only. Use unique secrets and database credentials for any public deployment.
 
 Never commit `.env` or real credentials.

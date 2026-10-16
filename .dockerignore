@@ -4,8 +4,8 @@
 .pytest_cache
 .ruff_cache
 .venv
-__pycache__
-*.py[cod]
+__pycache__ 
+.py
 .env
 *.env
 pgdata
