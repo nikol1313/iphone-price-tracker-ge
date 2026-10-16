@@ -43,25 +43,6 @@ uv sync --group dev
 uv run pytest
 ```
 
-Tests use temporary SQLite databases and mock external services; a running PostgreSQL server and live retailer requests are not required for the test suite.
-
-## Project structure
-
-- `app/api/` — HTTP routes and request/response handling
-- `app/services/` — authentication, product, alert, tracking, and ingestion logic
-- `app/db/` — SQLAlchemy models, schemas, database access, and session setup
-- `app/scraper/` — retailer-specific fetch and parsing implementations
-- `app/static/` — browser UI assets
-- `alembic/versions/` — database migration history
-
-```text
-Retailer pages -> scrapers -> ingestion service -> PostgreSQL
-                                      ^                  |
-Browser -> Nginx -> FastAPI routes/services ------------+
-                              |
-                              +-> Telegram alerts
-```
-
 ## Current scope and limitations
 
 - Zoommer is currently connected to the automated ingestion flow. The Alta scraper is not yet wired into that flow.
